@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+*.egg
+
+
+# 运行时/数据目录（由 pipeline 生成，不入库）
+data/
+discussions/
+knowledge-base/
+blog-posts/
+
+# .opencode 中非 skills 的内容
+.opencode/node_modules/
+.opencode/bun.lock
+
+# OS
+Thumbs.db
+.DS_Store
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
