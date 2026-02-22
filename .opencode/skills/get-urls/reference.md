@@ -1,6 +1,8 @@
 # URL 数据格式参考
 
-## data/urls/YYYY-MM-DD.json
+> 存储根目录优先由环境变量 `DATA_DIR` 决定；未设置时默认使用 `artifacts/`。
+
+## artifacts/urls/YYYY-MM-DD.json
 
 按日期存储当天收集的 URL，文件名格式为 `YYYY-MM-DD.json`。
 
@@ -28,7 +30,7 @@
 | status | string | 状态：`pending` → `fetched` → `analyzed` |
 | tags | array | 用户可选标签 |
 
-## data/url-hashes.json
+## artifacts/url-hashes.json
 
 全局 hash 去重索引，用于跨日期快速判重。
 

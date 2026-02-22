@@ -6,25 +6,22 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import sys
 from datetime import datetime
 from pathlib import Path
 
-def _find_project_root() -> Path:
-    """从脚本位置向上查找包含 data/ 目录的项目根目录。"""
-    current = Path(__file__).resolve().parent
-    for _ in range(10):
-        if (current / "data").is_dir():
-            return current
-        current = current.parent
-    raise RuntimeError("无法找到项目根目录（未找到 data/ 目录）")
+
+def _resolve_storage_dir() -> Path:
+    """确定统一存储目录，优先读取 DATA_DIR，未设置时默认 ~/.openclad/data。"""
+    data_dir = os.getenv("DATA_DIR", "~/.openclad/data")
+    return Path(data_dir).expanduser().resolve()
 
 
-PROJECT_ROOT = _find_project_root()
-DATA_DIR = PROJECT_ROOT / "data"
-URLS_DIR = DATA_DIR / "urls"
-HASHES_FILE = DATA_DIR / "url-hashes.json"
+STORAGE_DIR = _resolve_storage_dir()
+URLS_DIR = STORAGE_DIR / "urls"
+HASHES_FILE = STORAGE_DIR / "url-hashes.json"
 
 # URL 正则：匹配 http/https 链接
 URL_PATTERN = re.compile(
