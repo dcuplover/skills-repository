@@ -20,21 +20,16 @@ except ImportError as e:
     print(f"缺少依赖：{e}。请运行 pip install requests beautifulsoup4 markdownify", file=sys.stderr)
     sys.exit(1)
 
-def _find_project_root() -> Path:
-    """从脚本位置向上查找包含 data/ 目录的项目根目录。"""
-    current = Path(__file__).resolve().parent
-    for _ in range(10):
-        if (current / "data").is_dir():
-            return current
-        current = current.parent
-    raise RuntimeError("无法找到项目根目录（未找到 data/ 目录）")
+
+def _resolve_data_dir() -> Path:
+    """从环境变量 DATA_DIR 获取数据根目录，默认 ~/.openclad/data。"""
+    data_dir = os.getenv("DATA_DIR", "~/.openclad/data")
+    return Path(data_dir).expanduser().resolve()
 
 
-PROJECT_ROOT = _find_project_root()
-DATA_DIR = PROJECT_ROOT / "data"
+DATA_DIR = _resolve_data_dir()
 URLS_DIR = DATA_DIR / "urls"
 RAW_DOCS_DIR = DATA_DIR / "raw-docs"
-IMAGES_DIR = RAW_DOCS_DIR / "images"
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -114,9 +109,14 @@ def _download_image(img_url: str, save_dir: Path, session: requests.Session) -> 
         return None
 
 
-def fetch_and_convert(url: str, url_hash: str) -> tuple[str, str, int]:
+def fetch_and_convert(url: str, url_hash: str, date_str: str) -> tuple[str, str, int]:
     """
     抓取网页并转为 Markdown，同时下载图片到本地。
+
+    Args:
+        url: 目标网页 URL
+        url_hash: URL 的哈希值，用作文件名
+        date_str: 日期字符串（YYYY-MM-DD），用于确定存储目录
 
     Returns:
         (title, markdown_content, image_count)
@@ -143,7 +143,7 @@ def fetch_and_convert(url: str, url_hash: str) -> tuple[str, str, int]:
         article = soup
 
     # 下载图片并替换 src 为本地路径
-    img_dir = IMAGES_DIR / url_hash
+    img_dir = RAW_DOCS_DIR / date_str / f"{url_hash}_images"
     image_count = 0
     for img_tag in article.find_all("img"):
         src = img_tag.get("src") or img_tag.get("data-src") or ""
@@ -154,8 +154,8 @@ def fetch_and_convert(url: str, url_hash: str) -> tuple[str, str, int]:
         abs_url = urljoin(url, src)
         local_name = _download_image(abs_url, img_dir, session)
         if local_name:
-            # 使用相对于 raw-docs 目录的路径
-            img_tag["src"] = f"images/{url_hash}/{local_name}"
+            # 使用相对于 md 文件同级目录的路径
+            img_tag["src"] = f"{url_hash}_images/{local_name}"
             image_count += 1
         else:
             # 下载失败，保留原始 URL
@@ -181,6 +181,7 @@ def fetch_and_convert(url: str, url_hash: str) -> tuple[str, str, int]:
 def process_urls(date_str: str) -> None:
     """处理指定日期的 URL 文件。"""
     filepath = URLS_DIR / f"{date_str}.json"
+
     if not filepath.exists():
         print(f"没有找到 {date_str} 的 URL 文件：{filepath}")
         return
@@ -188,7 +189,8 @@ def process_urls(date_str: str) -> None:
     with open(filepath, "r", encoding="utf-8") as f:
         entries = json.load(f)
 
-    RAW_DOCS_DIR.mkdir(parents=True, exist_ok=True)
+    date_dir = RAW_DOCS_DIR / date_str
+    date_dir.mkdir(parents=True, exist_ok=True)
 
     fetched_count = 0
     failed_count = 0
@@ -201,11 +203,11 @@ def process_urls(date_str: str) -> None:
 
         url = entry["url"]
         url_hash = entry["hash"]
-        output_path = RAW_DOCS_DIR / f"{url_hash}.md"
+        output_path = date_dir / f"{url_hash}.md"
 
         try:
             print(f"正在抓取：{url}")
-            title, content, img_count = fetch_and_convert(url, url_hash)
+            title, content, img_count = fetch_and_convert(url, url_hash, date_str)
 
             # 写入 Markdown 文件（含 frontmatter）
             fetch_time = datetime.now().isoformat(timespec="seconds")
